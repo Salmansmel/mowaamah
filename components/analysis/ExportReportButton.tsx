@@ -46,6 +46,15 @@ export function ExportReportButton({ analysis }: { analysis: AnalysisResult }) {
       const pageHeight = pdf.internal.pageSize.getHeight();
       const usableWidth = pageWidth - PDF_MARGIN * 2;
 
+      // jsPDF pages default to a white fill — paint the report's dark background
+      // on every page so the margins/gaps between cards match the theme instead
+      // of showing through as white.
+      const fillPageBackground = () => {
+        pdf.setFillColor(11, 15, 25); // #0b0f19
+        pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+      };
+      fillPageBackground();
+
       let cursorY = PDF_MARGIN;
       let isFirstBlock = true;
 
@@ -56,6 +65,7 @@ export function ExportReportButton({ analysis }: { analysis: AnalysisResult }) {
 
         if (!isFirstBlock && cursorY + imgHeight > pageHeight - PDF_MARGIN) {
           pdf.addPage();
+          fillPageBackground();
           cursorY = PDF_MARGIN;
         }
 

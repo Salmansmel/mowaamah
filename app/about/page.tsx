@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { Upload, FileSearch, Sparkles, Gauge, FileCheck, Compass, Telescope } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
-import { TrustBadges } from '@/components/landing/TrustBadges';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -110,12 +109,6 @@ export default function AboutPage() {
               </motion.div>
             ))}
           </div>
-        </section>
-
-        {/* Trust */}
-        <section className="mx-auto max-w-4xl px-6 pb-16 text-center">
-          <h2 className="mb-2 text-xl font-bold text-text">{a.trustTitle}</h2>
-          <TrustBadges />
         </section>
 
         {/* CTA */}

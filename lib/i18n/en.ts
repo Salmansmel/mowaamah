@@ -16,7 +16,6 @@ export const en: Dictionary = {
       'Intelligent regulatory solutions tailored specifically to your business model. Fast-track your route to licensing.',
     ctaPrimary: 'Start Your Project Now',
     ctaSecondary: 'Learn More',
-    trustLabel: 'Aligned and compliant with',
   },
   auth: {
     nafathHeader: 'Sign in via Nafath',
@@ -147,7 +146,6 @@ export const en: Dictionary = {
     visionTitle: 'Our Vision',
     visionBody:
       'To be the leading regional platform for intelligent regulatory compliance, and a trusted partner bridging technical innovation with regulatory commitment in support of Saudi Vision 2030.',
-    trustTitle: 'Aligned With Regulatory Frameworks',
     ctaTitle: 'Ready to fast-track your route to licensing?',
     ctaButton: 'Start Your Project Now',
   },
