@@ -41,6 +41,9 @@ yarn-error.log*
 .claude/
 .dev-server.log
 .dev-server-err.log
+.gh-auth.log
+.vercel-deploy.log
+.vercel-login.log
 
 # typescript
 *.tsbuildinfo
