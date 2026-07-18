@@ -1,11 +1,15 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Download, LoaderCircle, CircleCheckBig } from 'lucide-react';
 import { AnalysisResult } from '@/lib/types';
 import { useLanguage } from '@/hooks/useLanguage';
 import { Button } from '@/components/ui/Button';
 import { delay } from '@/lib/utils';
+import { deriveDashboardMetrics } from '@/lib/dashboardMetrics';
+import { PdfSummaryTable } from './pdf/PdfSummaryTable';
+import { PdfBarChart } from './pdf/PdfBarChart';
+import { PdfDonutChart } from './pdf/PdfDonutChart';
 
 type ExportStatus = 'idle' | 'generating' | 'done';
 
@@ -16,6 +20,7 @@ export function ExportReportButton({ analysis }: { analysis: AnalysisResult }) {
   const { dict, lang } = useLanguage();
   const printRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<ExportStatus>('idle');
+  const metrics = useMemo(() => deriveDashboardMetrics(analysis), [analysis]);
 
   async function handleExport() {
     if (!printRef.current) return;
@@ -81,6 +86,12 @@ export function ExportReportButton({ analysis }: { analysis: AnalysisResult }) {
 
   const cardClass = 'rounded-2xl border border-white/10 bg-white/5 p-6';
 
+  const generatedDate = new Date().toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
   return (
     <>
       <Button onClick={handleExport} disabled={status !== 'idle'} variant="secondary" className="gap-2">
@@ -114,9 +125,14 @@ export function ExportReportButton({ analysis }: { analysis: AnalysisResult }) {
       >
         <div className="grid gap-6">
           <div data-pdf-block className={cardClass}>
-            <h1 className="mb-2 text-2xl font-bold">
-              {dict.nav.brand} — {dict.analysis.gapTitle}
-            </h1>
+            <div className="mb-4 flex items-center justify-between">
+              <h1 className="text-2xl font-bold">
+                {dict.nav.brand} — {dict.analysis.gapTitle}
+              </h1>
+              <span className="text-xs text-text-muted">
+                {dict.analysis.reportGeneratedOn}: {generatedDate}
+              </span>
+            </div>
             {analysis.fileName && (
               <p className="mb-4 text-sm text-text-muted">{analysis.fileName}</p>
             )}
@@ -125,18 +141,21 @@ export function ExportReportButton({ analysis }: { analysis: AnalysisResult }) {
           </div>
 
           <div data-pdf-block>
-            <h2 className="text-lg font-semibold">{dict.analysis.riskTitle}</h2>
+            <PdfSummaryTable
+              categories={analysis.riskCategories}
+              dict={dict}
+              lang={lang}
+              categoryLabel={categoryLabel}
+            />
           </div>
-          {analysis.riskCategories.map((cat) => (
-            <div
-              key={cat.id}
-              data-pdf-block
-              className={`${cardClass} flex items-center justify-between`}
-            >
-              <span>{categoryLabel(cat.id)}</span>
-              <span className="text-lg font-semibold">{cat.score}%</span>
-            </div>
-          ))}
+
+          <div data-pdf-block>
+            <PdfBarChart indicators={metrics.readinessIndicators} dict={dict} />
+          </div>
+
+          <div data-pdf-block>
+            <PdfDonutChart indicators={metrics.readinessIndicators} dict={dict} />
+          </div>
 
           <div data-pdf-block>
             <h2 className="text-lg font-semibold">{dict.analysis.gapTitle}</h2>

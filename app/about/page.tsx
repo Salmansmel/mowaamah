@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Upload, Sparkles, FileText } from 'lucide-react';
+import { Upload, FileSearch, Sparkles, Gauge, FileCheck, Compass, Telescope } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { TrustBadges } from '@/components/landing/TrustBadges';
@@ -15,8 +15,10 @@ export default function AboutPage() {
 
   const steps = [
     { icon: Upload, title: a.step1Title, body: a.step1Body },
-    { icon: Sparkles, title: a.step2Title, body: a.step2Body },
-    { icon: FileText, title: a.step3Title, body: a.step3Body },
+    { icon: FileSearch, title: a.step2Title, body: a.step2Body },
+    { icon: Sparkles, title: a.step3Title, body: a.step3Body },
+    { icon: Gauge, title: a.step4Title, body: a.step4Body },
+    { icon: FileCheck, title: a.step5Title, body: a.step5Body },
   ];
 
   return (
@@ -53,6 +55,38 @@ export default function AboutPage() {
             <h2 className="mb-3 text-2xl font-bold text-text">{a.problemTitle}</h2>
             <p className="text-text-muted">{a.problemBody}</p>
           </GlassCard>
+        </section>
+
+        {/* Mission / Vision */}
+        <section className="mx-auto max-w-5xl px-6 pb-16">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <GlassCard className="h-full p-8">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/15 text-primary-light">
+                  <Compass size={24} />
+                </div>
+                <h3 className="mb-2 text-xl font-bold text-text">{a.missionTitle}</h3>
+                <p className="text-text-muted">{a.missionBody}</p>
+              </GlassCard>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <GlassCard className="h-full p-8">
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-success/15 text-success-light">
+                  <Telescope size={24} />
+                </div>
+                <h3 className="mb-2 text-xl font-bold text-text">{a.visionTitle}</h3>
+                <p className="text-text-muted">{a.visionBody}</p>
+              </GlassCard>
+            </motion.div>
+          </div>
         </section>
 
         {/* How it works */}
