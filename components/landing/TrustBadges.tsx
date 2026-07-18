@@ -1,7 +1,6 @@
 'use client';
 
 import Image from 'next/image';
-import { useLanguage } from '@/hooks/useLanguage';
 
 const badges = [
   { name: 'SAMA', src: '/logos/sama.svg', width: 90, height: 24 },
@@ -10,11 +9,8 @@ const badges = [
 ];
 
 export function TrustBadges() {
-  const { dict } = useLanguage();
-
   return (
     <div className="mx-auto mt-16 flex max-w-3xl flex-col items-center gap-6">
-      <p className="text-sm text-text-muted">{dict.hero.trustLabel}</p>
       <div className="flex flex-wrap items-center justify-center gap-10">
         {badges.map((badge) => (
           <Image
