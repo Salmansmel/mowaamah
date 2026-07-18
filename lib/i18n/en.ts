@@ -172,7 +172,7 @@ export const en: Dictionary = {
     step4Body:
       'The team was honored with the Best External Representation award on Technical Day 4 by the President of Shaqra University and the Dean of the College of Computer and Information Technology.',
     step4Detail:
-      "I was honored alongside my colleagues with the Best External Representation award on the Fourth Technical Day, presented by the President of Shaqra University and the Dean of the College of Computer and Information Technology. This recognition crowns the team's efforts in achieving first place at the Government Innovation Hackathon, where we were also honored by His Royal Highness the Governor of the Eastern Province.",
+      "Honored with the Best External Representation award on the Fourth Technical Day, presented by the President of Shaqra University and the Dean of the College of Computer and Information Technology. This recognition crowns the team's efforts in achieving first place at the Government Innovation Hackathon, where we were also honored by His Royal Highness the Governor of the Eastern Province.",
     imagePlaceholder: 'Photo coming soon',
     viewDetails: 'View Details',
     close: 'Close',
