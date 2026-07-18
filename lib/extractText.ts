@@ -3,9 +3,18 @@ export async function extractTextFromFile(file: File): Promise<string> {
   const lowerName = file.name.toLowerCase();
 
   if (lowerName.endsWith('.pdf')) {
-    // Legacy Node build + text-only extraction needs no canvas/DOMMatrix,
-    // and its default (non-strict) parsing mode auto-recovers from
-    // malformed cross-reference tables (seen in some PDF-generator output).
+    // pdfjs-dist optionally uses the native @napi-rs/canvas package to polyfill
+    // DOMMatrix/Path2D in Node — that native binary isn't available in Vercel's
+    // serverless runtime, and without it pdfjs-dist crashes even for plain text
+    // extraction. Provide a pure-JS DOMMatrix polyfill instead so it never needs
+    // native canvas at all.
+    if (typeof (globalThis as { DOMMatrix?: unknown }).DOMMatrix === 'undefined') {
+      const { default: CSSMatrix } = await import('dommatrix');
+      (globalThis as { DOMMatrix?: unknown }).DOMMatrix = CSSMatrix;
+    }
+
+    // Legacy Node build; its default (non-strict) parsing mode auto-recovers
+    // from malformed cross-reference tables (seen in some PDF-generator output).
     const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
     const doc = await pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
