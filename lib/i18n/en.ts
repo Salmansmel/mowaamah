@@ -35,6 +35,9 @@ export const en: Dictionary = {
     errorInvalidCredential: 'Invalid email or password.',
     errorEmailInUse: 'This email is already in use.',
     errorWeakPassword: 'Password is too weak (min. 6 characters).',
+    guestLogin: 'Continue as Guest (Beta Trial)',
+    orDivider: 'or',
+    guestBadge: 'Beta',
   },
   upload: {
     title: 'Upload Project File',
@@ -129,6 +132,19 @@ export const en: Dictionary = {
     trustTitle: 'Aligned With Regulatory Frameworks',
     ctaTitle: 'Ready to fast-track your route to licensing?',
     ctaButton: 'Start Your Project Now',
+  },
+  journey: {
+    title: 'Our Journey',
+    step1Title: 'The Beginning',
+    step1Body:
+      'Our participation and first-place win in the Future Economies track of the Eastern Province Government Innovation Hackathon.',
+    step2Title: 'Leading the Pack',
+    step2Body:
+      'We achieved the highest evaluation score among all participating teams in the hackathon at 78.60%, proving the strength and innovation of our technical solution.',
+    step3Title: 'The Honoring',
+    step3Body:
+      "The Mowaama team was honored by His Royal Highness Prince Saud bin Naif Al Saud, Governor of the Eastern Province, in recognition of this achievement.",
+    imagePlaceholder: 'Photo coming soon',
   },
   common: {
     loading: 'Loading...',

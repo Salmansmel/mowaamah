@@ -19,6 +19,14 @@ export async function createUserProfile(uid: string, email: string) {
   );
 }
 
+export async function createGuestProfile(uid: string) {
+  await setDoc(
+    doc(db, 'users', uid),
+    { uid, isGuest: true, createdAt: serverTimestamp() },
+    { merge: true }
+  );
+}
+
 export async function saveUploadRecord(
   uid: string,
   uploadId: string,

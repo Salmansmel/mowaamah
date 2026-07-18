@@ -2,13 +2,18 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInAnonymously,
+} from 'firebase/auth';
 import { Lock } from 'lucide-react';
 import { auth } from '@/lib/firebase';
-import { createUserProfile } from '@/lib/firestore';
+import { createUserProfile, createGuestProfile } from '@/lib/firestore';
 import { useLanguage } from '@/hooks/useLanguage';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 
 function getErrorCode(error: unknown): string | null {
   if (typeof error === 'object' && error !== null && 'code' in error) {
@@ -58,6 +63,19 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
     } catch (err) {
       setError(mapAuthError(err, dict));
     } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGuestLogin() {
+    setError(null);
+    setLoading(true);
+    try {
+      const credential = await signInAnonymously(auth);
+      await createGuestProfile(credential.user.uid);
+      router.push(redirectTo);
+    } catch (err) {
+      setError(mapAuthError(err, dict));
       setLoading(false);
     }
   }
@@ -123,6 +141,27 @@ export function AuthForm({ mode }: { mode: 'login' | 'signup' }) {
           </>
         )}
       </p>
+
+      {mode === 'login' && (
+        <>
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-xs text-text-muted">{dict.auth.orDivider}</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={loading}
+            onClick={handleGuestLogin}
+            className="w-full gap-2 border-dashed border-warning/40 text-warning hover:bg-warning/10"
+          >
+            {dict.auth.guestLogin}
+            <Badge level="medium">{dict.auth.guestBadge}</Badge>
+          </Button>
+        </>
+      )}
     </GlassCard>
   );
 }
