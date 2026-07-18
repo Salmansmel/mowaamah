@@ -21,7 +21,7 @@ export function JourneySection() {
       icon: Award,
       title: j.step2Title,
       body: j.step2Body,
-      image: null,
+      image: '/images/journey-2.jpg',
     },
     {
       icon: Crown,
