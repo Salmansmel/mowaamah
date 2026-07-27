@@ -90,7 +90,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const text = await extractTextFromFile(file);
-    if (!text.trim()) throw new Error('No extractable text found in document');
+    if (!text || text.trim().length < 50) {
+      return NextResponse.json({ error: 'فشل استخراج النص، يرجى التأكد من صلاحية الملف وأن يحتوي على نصوص قابلة للقراءة.' }, { status: 400 });
+    }
 
     const prompt = buildAnalysisPrompt(text.slice(0, MAX_EXTRACTED_CHARS), sector);
     const raw = await callNvidiaAnalysis(prompt);
@@ -104,15 +106,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (err) {
-    console.error('Gemini analysis failed — falling back to mock analysis', err);
-    const fallback = await generateMockAnalysis(file.name, sector);
-    
-    // Inject the real error into the mock data so the user can debug it on the UI
+    console.error('API Error:', err);
     const errorMessage = err instanceof Error ? err.message : String(err);
-    if (fallback.gaps.length > 0) {
-      fallback.gaps[0].gapFoundAr = `⚠️ ERROR: ${errorMessage} (This is a fallback analysis)`;
-    }
-    
-    return NextResponse.json(fallback);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

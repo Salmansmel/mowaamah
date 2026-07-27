@@ -41,6 +41,17 @@ function UploadContent() {
       formData.append('sector', sector);
 
       const response = await fetch('/api/analyze', { method: 'POST', body: formData });
+      if (!response.ok) {
+        let errMsg = dict.auth.errorGeneric;
+        try {
+          const errData = await response.json();
+          if (errData.error) errMsg = errData.error;
+        } catch {
+          // If response isn't JSON (like Vercel 504 HTML), keep generic error
+        }
+        throw new Error(errMsg);
+      }
+      
       const analysis: AnalysisResult = await response.json();
 
       const record = {
@@ -54,8 +65,8 @@ function UploadContent() {
       window.sessionStorage.setItem(ANALYSIS_STORAGE_KEY, JSON.stringify(record));
 
       router.push(`/analysis?uploadId=${uploadId}`);
-    } catch {
-      setError(dict.auth.errorGeneric);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : dict.auth.errorGeneric);
       setSubmitting(false);
     }
   }
