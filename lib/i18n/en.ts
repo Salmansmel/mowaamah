@@ -42,6 +42,7 @@ export const en: Dictionary = {
     title: 'Upload Project File',
     sectorLabel: 'Sector',
     sectorFintech: 'Fintech Sector - Digital Payments',
+    sectorOpenBanking: 'Fintech Sector - Open Banking (AISP)',
     dropzoneTitle: 'Drag and drop your file here',
     dropzoneOr: 'or',
     dropzoneBrowse: 'Browse Files',

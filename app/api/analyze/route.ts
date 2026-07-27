@@ -1,75 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractTextFromFile } from '@/lib/extractText';
 import { callNvidiaAnalysis, RawAnalysis } from '@/lib/nvidia';
-import { REGULATORY_REQUIREMENTS } from '@/lib/regulatoryRequirements';
-import { AnalysisResult, GapItem } from '@/lib/types';
+import { getRequirementsForSector } from '@/lib/regulatoryRequirements';
+import { AnalysisResult, GapItem, RegulatoryRequirement } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const MAX_EXTRACTED_CHARS = 100000;
 
-function buildAnalysisPrompt(documentText: string, sector: string): string {
-  const requirementsBlock = REGULATORY_REQUIREMENTS.map(
-    (r) => `- id: ${r.id} | source: ${r.source} ${r.clauseRef}\n  requirement: ${r.textEn}`
+const SECTOR_CONTEXT: Record<string, string> = {
+  'fintech-payments': `This is a DIGITAL PAYMENTS company. Focus on payment processing compliance, capital adequacy, AML/KYC, and transaction monitoring.`,
+  'open-banking-aisp': `This is an OPEN BANKING (AISP) company that accesses customer bank accounts to read financial data.
+CRITICAL VIOLATIONS TO LOOK FOR:
+- Storing bank credentials (username/password) instead of using OAuth 2.0 — this is a CATASTROPHIC violation
+- Collecting unnecessary data like GPS location, contacts, or call logs — violates data minimization
+- Bundling all consents into one general Terms & Conditions — must be granular per data type
+- Retaining data indefinitely/permanently — must have defined retention period
+- Sharing financial data with advertisers or third parties without explicit separate consent
+- Not allowing users to revoke access and delete their data`,
+};
+
+function buildAnalysisPrompt(documentText: string, sector: string, requirements: RegulatoryRequirement[]): string {
+  const requirementsBlock = requirements.map(
+    (r) => `- id: ${r.id} | source: ${r.source} ${r.clauseRef}\n  requirement (AR): ${r.textAr}\n  requirement (EN): ${r.textEn}`
   ).join('\n');
 
-  return `You are a Saudi Arabian financial regulatory compliance analyst reviewing a fintech startup's project document for the "${sector}" sector against SAMA (Saudi Central Bank) requirements.
+  const sectorContext = SECTOR_CONTEXT[sector] || SECTOR_CONTEXT['fintech-payments'];
 
-Below is a fixed list of regulatory requirements, each with an id:
+  return `You are a Saudi Arabian financial regulatory compliance analyst. You are reviewing a startup's compliance document.
+
+SECTOR CONTEXT:
+${sectorContext}
+
+Below is the FULL list of regulatory requirements you must check (${requirements.length} total), each with an id:
 ${requirementsBlock}
 
-Below is the text extracted from the startup's uploaded project document:
+Below is the text extracted from the startup's uploaded document:
 """
 ${documentText}
 """
 
-IMPORTANT: The text above was extracted from an Arabic PDF. Text extraction sometimes scrambles spaces or word order in right-to-left languages. 
+YOUR TASK:
+For each of the ${requirements.length} requirements above, search the document carefully:
+1. Search for the meaning and context in ARABIC (e.g., "رأس المال", "تشفير", "وحدة التحريات المالية"), not just English keywords.
+2. امسح النص بالكامل بحثاً عن كل متطلب على حدة. لا تصرح بغياب المتطلب إلا بعد التأكد التام من عدم وجود أي مرادفات عربية له في كامل المستند.
+3. If you find ANY mention or evidence of a requirement, it is MET — do NOT report it as a gap.
+4. ONLY report a gap if there is ZERO evidence in the entire document.
+5. ALSO look for ACTIVE VIOLATIONS: if the document describes a practice that directly CONTRADICTS a requirement (e.g., storing passwords when the requirement prohibits it), report it as a HIGH severity gap and explain the violation clearly.
 
-Task: You must perform a STRICT AND PRECISE RETRIEVAL search for each requirement. Do NOT rely on general summaries. For every single requirement in the list:
-1. Search the extracted document for any related keywords, synonyms, or partial matches.
-2. CRITICAL: Search for the meaning and context in the Arabic language (e.g., "وحدة التحريات المالية"), do NOT require an exact literal match with the English requirement text.
-3. امسح النص بالكامل بحثاً عن كل متطلب على حدة. لا تصرح بغياب المتطلب إلا بعد التأكد التام من عدم وجود أي مرادفات عربية له في كامل المستند.
-4. If you find ANY mention or evidence of the requirement conceptually, you MUST consider it MET (do NOT report a gap).
-5. ONLY report a gap if you have exhaustively searched the entire text and found absolutely zero evidence.
-6. Do NOT hedge by saying "it wasn't clearly mentioned" (لم يتم ذكره بشكل واضح). If it is mentioned at all, it is NOT a gap.
-
-You MUST calculate the scores yourself based on your analysis. Do NOT use placeholder numbers.
-- overallScore: Calculate as a percentage (0-100) reflecting how many requirements are MET vs total requirements.
-- Each riskCategory score: Calculate based on how well the document addresses that specific risk area.
+SCORING RULES:
+- overallScore: Calculate as (number of MET requirements / total requirements) * 100. Round to nearest integer.
+- Each riskCategory score: Calculate based on how many requirements in that category are MET.
 - level: "low" if score >= 80, "medium" if score >= 50, "high" if score < 50.
+- If many gaps exist, the overallScore MUST be low. A document with 5+ gaps cannot score above 60%.
+- If the document actively VIOLATES requirements (not just missing them), scores should be even lower.
 
-Respond ONLY with a valid JSON object exactly matching this structure (do NOT wrap it in markdown backticks):
+Respond ONLY with valid JSON matching this structure (no markdown, no backticks):
 {
-  "overallScore": <YOUR_CALCULATED_SCORE>,
+  "overallScore": <CALCULATE_FROM_ANALYSIS>,
   "riskCategories": [
-    { "id": "regulatory", "score": <CALCULATED>, "level": "<CALCULATED>", "summaryAr": "<your Arabic summary>", "summaryEn": "<your English summary>" },
-    { "id": "cybersecurity", "score": <CALCULATED>, "level": "<CALCULATED>", "summaryAr": "<your Arabic summary>", "summaryEn": "<your English summary>" },
-    { "id": "operational", "score": <CALCULATED>, "level": "<CALCULATED>", "summaryAr": "<your Arabic summary>", "summaryEn": "<your English summary>" }
+    { "id": "regulatory", "score": <CALCULATE>, "level": "<CALCULATE>", "summaryAr": "<detailed Arabic summary>", "summaryEn": "<detailed English summary>" },
+    { "id": "cybersecurity", "score": <CALCULATE>, "level": "<CALCULATE>", "summaryAr": "<detailed Arabic summary>", "summaryEn": "<detailed English summary>" },
+    { "id": "operational", "score": <CALCULATE>, "level": "<CALCULATE>", "summaryAr": "<detailed Arabic summary>", "summaryEn": "<detailed English summary>" }
   ],
   "gaps": [
     {
-      "requirementId": "<actual_req_id_from_list>",
-      "gapFoundAr": "<Arabic description of the gap>",
-      "gapFoundEn": "<English description of the gap>",
+      "requirementId": "<actual_id_from_list>",
+      "gapFoundAr": "<Arabic: describe exactly what is missing or violated>",
+      "gapFoundEn": "<English: describe exactly what is missing or violated>",
       "severity": "<low|medium|high>",
-      "suggestedFixAr": "<Arabic fix suggestion>",
-      "suggestedFixEn": "<English fix suggestion>"
+      "suggestedFixAr": "<Arabic: specific actionable fix>",
+      "suggestedFixEn": "<English: specific actionable fix>"
     }
   ]
+}`;
 }
 
-CRITICAL RULES:
-- The overallScore MUST be mathematically consistent with the gaps found. If many gaps exist, the score MUST be low.
-- Do NOT copy example numbers. Calculate real scores from your analysis.
-- Only reference requirement ids from the list above.
-- Do NOT include any explanations outside the JSON.`;
-}
-
-function enrichGapsWithRequirementText(raw: RawAnalysis): GapItem[] {
+function enrichGapsWithRequirementText(raw: RawAnalysis, requirements: RegulatoryRequirement[]): GapItem[] {
   return raw.gaps
     .map((gap): GapItem | null => {
-      const requirement = REGULATORY_REQUIREMENTS.find((r) => r.id === gap.requirementId);
+      const requirement = requirements.find((r) => r.id === gap.requirementId);
       if (!requirement) return null;
       return {
         requirementId: requirement.id,
@@ -102,13 +113,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'فشل استخراج النص، يرجى التأكد من صلاحية الملف وأن يحتوي على نصوص قابلة للقراءة.' }, { status: 400 });
     }
 
-    const prompt = buildAnalysisPrompt(text.slice(0, MAX_EXTRACTED_CHARS), sector);
+    console.log(`[ANALYZE] Sector: ${sector} | Text length: ${text.length} chars | First 200 chars: ${text.slice(0, 200)}`);
+
+    const requirements = getRequirementsForSector(sector);
+    const prompt = buildAnalysisPrompt(text.slice(0, MAX_EXTRACTED_CHARS), sector, requirements);
     const raw = await callNvidiaAnalysis(prompt);
 
     const result: AnalysisResult = {
       overallScore: raw.overallScore,
       riskCategories: raw.riskCategories,
-      gaps: enrichGapsWithRequirementText(raw),
+      gaps: enrichGapsWithRequirementText(raw, requirements),
       source: 'nvidia',
     };
 

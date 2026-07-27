@@ -18,7 +18,10 @@ interface SectorDropdownProps {
 
 export function SectorDropdown({ value, onChange, options }: SectorDropdownProps) {
   const { dict } = useLanguage();
-  const opts = options ?? [{ value: 'fintech-payments', label: dict.upload.sectorFintech }];
+  const opts = options ?? [
+    { value: 'fintech-payments', label: dict.upload.sectorFintech },
+    { value: 'open-banking-aisp', label: dict.upload.sectorOpenBanking },
+  ];
   const selected = opts.find((o) => o.value === value) ?? opts[0];
 
   return (

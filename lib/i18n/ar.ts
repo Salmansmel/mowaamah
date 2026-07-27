@@ -40,6 +40,7 @@ export const ar = {
     title: 'ارفع ملف المشروع',
     sectorLabel: 'القطاع',
     sectorFintech: 'قطاع الفنتك - المدفوعات الرقمية',
+    sectorOpenBanking: 'قطاع الفنتك - المصرفية المفتوحة (AISP)',
     dropzoneTitle: 'اسحب وأفلت الملف هنا',
     dropzoneOr: 'أو',
     dropzoneBrowse: 'تصفح الملفات',
