@@ -25,9 +25,15 @@ Below is the text extracted from the startup's uploaded project document:
 ${documentText}
 """
 
-IMPORTANT: The text above was extracted from an Arabic PDF. Text extraction sometimes scrambles spaces or word order in right-to-left languages. You MUST read the ENTIRE text very carefully. Do not mistakenly claim a requirement is missing if the keywords or concepts exist anywhere in the text.
+IMPORTANT: The text above was extracted from an Arabic PDF. Text extraction sometimes scrambles spaces or word order in right-to-left languages. 
 
-Task: Compare the document against each requirement. For requirements NOT adequately addressed in the document, report a gap. Then compute:
+Task: You must perform a STRICT AND PRECISE RETRIEVAL search for each requirement. Do NOT rely on general summaries. For every single requirement in the list:
+1. Search the extracted document for any related keywords, synonyms, or partial matches (e.g., "التحريات المالية", "FIU", "تدريب", "دوري").
+2. If you find ANY mention or evidence of the requirement, you MUST consider it MET (do NOT report a gap).
+3. ONLY report a gap if you have exhaustively searched the entire text and found absolutely zero evidence. 
+4. Do NOT hedge by saying "it wasn't clearly mentioned" (لم يتم ذكره بشكل واضح). If it is mentioned at all, it is NOT a gap.
+
+Respond only with the structured JSON matching the schema below. Compute:
 1. overallScore (0-100): overall compliance readiness.
 2. riskCategories: exactly three entries with id "regulatory", "cybersecurity", and "operational", each with a score (0-100, higher = lower risk), a level ("low"|"medium"|"high"), and a short bilingual summary (Arabic in summaryAr, English in summaryEn) of that risk category's issues found in the document.
 3. gaps: an array where each item references one of the requirement ids above (requirementId) that was not adequately addressed, with a bilingual description of the gap found (gapFoundAr, gapFoundEn), a severity ("low"|"medium"|"high"), and a suggested bilingual fix clause (suggestedFixAr, suggestedFixEn) the startup could add to their document to close the gap.
