@@ -7,73 +7,51 @@ export const nvidiaClient = apiKey ? new OpenAI({
   baseURL: 'https://integrate.api.nvidia.com/v1',
 }) : null;
 
-// Use a generative model, as embedding models cannot generate JSON responses
 export const NVIDIA_MODEL = 'meta/llama-3.1-8b-instruct';
 
-export interface RawAnalysis {
-  overallScore: number;
-  riskCategories: {
-    id: 'regulatory' | 'cybersecurity' | 'operational';
-    score: number;
-    level: 'low' | 'medium' | 'high';
-    summaryAr: string;
-    summaryEn: string;
-  }[];
-  gaps: {
-    requirementId: string;
-    gapFoundAr: string;
-    gapFoundEn: string;
-    severity: 'low' | 'medium' | 'high';
-    suggestedFixAr?: string;
-    suggestedFixEn?: string;
-  }[];
+/** Per-requirement evaluation from the model */
+export interface RequirementEvaluation {
+  requirementId: string;
+  extractedQuote: string;   // النص الحرفي من المستند — يُكتب أولاً لإجبار النموذج على البحث
+  isCompliant: boolean;     // هل المتطلب مستوفى؟ — يُكتب ثانياً بعد رؤية الاقتباس
+  gap: string;              // وصف الفجوة — يُكتب أخيراً بعد التفكير
+  gapEn: string;
+  severity: 'low' | 'medium' | 'high' | 'none';
+  suggestedFix: string;
+  suggestedFixEn: string;
+}
+
+/** Full structured response from the model */
+export interface StructuredAnalysis {
+  requirements: RequirementEvaluation[];
+  summaryAr: string;
+  summaryEn: string;
 }
 
 /**
- * Attempt to repair common JSON errors from LLMs:
- * - Trailing commas before } or ]
- * - Single quotes instead of double quotes (careful with Arabic text)
- * - Unescaped newlines inside strings
- * - Truncated JSON (missing closing braces)
+ * Attempt to repair common JSON errors from LLMs
  */
 function repairJSON(text: string): string {
   let fixed = text;
-
-  // Remove markdown code blocks
   fixed = fixed.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-  // Fix trailing commas: ,} or ,]
   fixed = fixed.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
 
-  // Fix unescaped newlines inside JSON string values
-  fixed = fixed.replace(/(?<=": ")(.*?)(?=")/gs, (match) => {
-    return match.replace(/\n/g, '\\n');
-  });
-
-  // If JSON is truncated (missing closing braces), try to close it
+  // Close unclosed brackets/braces
   const openBraces = (fixed.match(/{/g) || []).length;
   const closeBraces = (fixed.match(/}/g) || []).length;
   const openBrackets = (fixed.match(/\[/g) || []).length;
   const closeBrackets = (fixed.match(/]/g) || []).length;
+  for (let i = 0; i < openBrackets - closeBrackets; i++) fixed += ']';
+  for (let i = 0; i < openBraces - closeBraces; i++) fixed += '}';
 
-  // Close unclosed brackets first, then braces
-  for (let i = 0; i < openBrackets - closeBrackets; i++) {
-    fixed += ']';
-  }
-  for (let i = 0; i < openBraces - closeBraces; i++) {
-    fixed += '}';
-  }
-
-  // Remove any trailing text after the last }
+  // Remove trailing text after last }
   const lastBrace = fixed.lastIndexOf('}');
-  if (lastBrace !== -1) {
-    fixed = fixed.slice(0, lastBrace + 1);
-  }
+  if (lastBrace !== -1) fixed = fixed.slice(0, lastBrace + 1);
 
   return fixed;
 }
 
-export async function callNvidiaAnalysis(prompt: string): Promise<RawAnalysis> {
+export async function callNvidiaAnalysis(prompt: string): Promise<StructuredAnalysis> {
   if (!nvidiaClient) throw new Error('NVIDIA_API_KEY not configured');
 
   const response = await nvidiaClient.chat.completions.create({
@@ -91,22 +69,17 @@ export async function callNvidiaAnalysis(prompt: string): Promise<RawAnalysis> {
   const cleanText = repairJSON(text);
   
   try {
-    return JSON.parse(cleanText) as RawAnalysis;
+    return JSON.parse(cleanText) as StructuredAnalysis;
   } catch (firstError) {
     console.error('First JSON parse failed, attempting aggressive repair...');
-    
-    // Aggressive repair: extract just the JSON object
     try {
       const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const aggressive = repairJSON(jsonMatch[0]);
-        return JSON.parse(aggressive) as RawAnalysis;
+        return JSON.parse(repairJSON(jsonMatch[0])) as StructuredAnalysis;
       }
-    } catch {
-      // Fall through
-    }
+    } catch { /* fall through */ }
     
-    console.error('Failed to parse NVIDIA JSON response:', cleanText.slice(0, 500));
+    console.error('Failed to parse NVIDIA JSON:', cleanText.slice(0, 500));
     throw new Error('NVIDIA API returned invalid JSON: ' + (firstError as Error).message);
   }
 }

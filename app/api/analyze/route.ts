@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractTextFromFile } from '@/lib/extractText';
-import { callNvidiaAnalysis, RawAnalysis } from '@/lib/nvidia';
+import { callNvidiaAnalysis, StructuredAnalysis } from '@/lib/nvidia';
 import { getRequirementsForSector } from '@/lib/regulatoryRequirements';
-import { AnalysisResult, GapItem, RegulatoryRequirement } from '@/lib/types';
+import { AnalysisResult, GapItem, RiskCategory, RegulatoryRequirement } from '@/lib/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -13,7 +13,7 @@ const SECTOR_CONTEXT: Record<string, string> = {
   'fintech-payments': `This is a DIGITAL PAYMENTS company. Focus on payment processing compliance, capital adequacy, AML/KYC, and transaction monitoring.`,
   'open-banking-aisp': `This is an OPEN BANKING (AISP) company that accesses customer bank accounts to read financial data.
 CRITICAL VIOLATIONS TO LOOK FOR:
-- Storing bank credentials (username/password) instead of using OAuth 2.0 — this is a CATASTROPHIC violation
+- Storing bank credentials (username/password) instead of using OAuth 2.0 — CATASTROPHIC violation
 - Collecting unnecessary data like GPS location, contacts, or call logs — violates data minimization
 - Bundling all consents into one general Terms & Conditions — must be granular per data type
 - Retaining data indefinitely/permanently — must have defined retention period
@@ -22,87 +22,158 @@ CRITICAL VIOLATIONS TO LOOK FOR:
 };
 
 function buildAnalysisPrompt(documentText: string, sector: string, requirements: RegulatoryRequirement[]): string {
-  const requirementsBlock = requirements.map(
-    (r) => `- id: ${r.id} | source: ${r.source} ${r.clauseRef}\n  requirement (AR): ${r.textAr}\n  requirement (EN): ${r.textEn}`
+  const requirementsList = requirements.map(
+    (r) => `- id: "${r.id}" | ${r.source} ${r.clauseRef}\n  AR: ${r.textAr}\n  EN: ${r.textEn}`
   ).join('\n');
 
   const sectorContext = SECTOR_CONTEXT[sector] || SECTOR_CONTEXT['fintech-payments'];
 
-  return `You are a Saudi Arabian financial regulatory compliance analyst. You are reviewing a startup's compliance document.
+  return `You are a Saudi regulatory compliance analyst. Evaluate the document below against ${requirements.length} requirements.
 
-SECTOR CONTEXT:
-${sectorContext}
+SECTOR: ${sectorContext}
 
-Below is the FULL list of regulatory requirements you must check (${requirements.length} total), each with an id:
-${requirementsBlock}
+REQUIREMENTS LIST (${requirements.length} total):
+${requirementsList}
 
-Below is the text extracted from the startup's uploaded document:
+DOCUMENT TEXT:
 """
 ${documentText}
 """
 
-YOUR TASK — CHAIN OF THOUGHT (follow these steps IN ORDER for EACH requirement):
+INSTRUCTIONS — CHAIN OF THOUGHT:
+For EACH requirement in the list above, you MUST follow these 3 steps IN ORDER:
 
-لكل متطلب تنظيمي، اتبع الخطوات التالية بالترتيب:
+Step 1 — QUOTE: Search the entire document for text related to this requirement or its Arabic synonyms. Copy the exact Arabic text you found. If nothing found, write "غير موجود في المستند".
+Step 2 — COMPLIANCE: Based on your quote, does it satisfy the requirement? Does it comply or violate it?
+Step 3 — GAP: Write the gap ONLY if the quote is missing OR the text actively violates the requirement.
 
-الخطوة 1 — اقتباس: استخرج النص الدقيق من الوثيقة المرتبط بالمتطلب أو مرادفاته العربية. إذا وجدت نصاً ذا صلة، انسخه حرفياً.
-الخطوة 2 — تحليل: هل النص المقتبس يفي بالمتطلب بالكامل؟ هل يتوافق معه أم يتناقض معه؟
-الخطوة 3 — قرار الفجوة: لا تكتب فجوة إلا إذا كان الاقتباس مفقوداً تماماً أو كان النص يتناقض صراحةً مع المتطلب (انتهاك نشط).
-
-IMPORTANT RULES:
-1. Search for meaning and context in ARABIC (e.g., "رأس المال", "تشفير", "وحدة التحريات المالية"), not just English keywords.
-2. If you find ANY mention or evidence of a requirement, it is MET — do NOT report it as a gap.
-3. ONLY report a gap if there is ZERO evidence in the entire document.
-4. ACTIVE VIOLATIONS: if the document describes a practice that directly CONTRADICTS a requirement (e.g., storing passwords when the requirement prohibits it), report it as a HIGH severity gap.
-
-SCORING RULES:
-- overallScore: Calculate as (number of MET requirements / total ${requirements.length} requirements) * 100.
-- Each riskCategory score: Calculate based on how many requirements in that category are MET.
-- level: "low" if score >= 80, "medium" if score >= 50, "high" if score < 50.
-- If many gaps exist, the overallScore MUST be low. A document with 5+ gaps cannot score above 60%.
-- If the document actively VIOLATES requirements (not just missing them), scores should be even lower.
-
-Respond ONLY with valid JSON (no markdown, no backticks, no text outside the JSON):
+OUTPUT FORMAT — You MUST output valid JSON with this EXACT structure:
 {
-  "overallScore": <CALCULATE>,
-  "riskCategories": [
-    { "id": "regulatory", "score": <CALCULATE>, "level": "<CALCULATE>", "summaryAr": "<summary>", "summaryEn": "<summary>" },
-    { "id": "cybersecurity", "score": <CALCULATE>, "level": "<CALCULATE>", "summaryAr": "<summary>", "summaryEn": "<summary>" },
-    { "id": "operational", "score": <CALCULATE>, "level": "<CALCULATE>", "summaryAr": "<summary>", "summaryEn": "<summary>" }
-  ],
-  "gaps": [
+  "requirements": [
     {
-      "requirementId": "<id_from_list>",
-      "evidence": "<exact Arabic quote from document, or NONE if not found>",
-      "gapFoundAr": "<Arabic: what is missing or violated>",
-      "gapFoundEn": "<English: what is missing or violated>",
-      "severity": "<low|medium|high>",
-      "suggestedFixAr": "<Arabic fix>",
-      "suggestedFixEn": "<English fix>"
+      "requirementId": "<id from list>",
+      "extractedQuote": "<Step 1: exact Arabic text from document, or 'غير موجود في المستند'>",
+      "isCompliant": <Step 2: true or false>,
+      "gap": "<Step 3: Arabic gap description if not compliant, or 'مستوفى' if compliant>",
+      "gapEn": "<English gap description if not compliant, or 'Compliant' if compliant>",
+      "severity": "<none if compliant, low/medium/high if gap>",
+      "suggestedFix": "<Arabic fix if gap, or empty>",
+      "suggestedFixEn": "<English fix if gap, or empty>"
     }
-  ]
-}`;
+  ],
+  "summaryAr": "<overall Arabic summary of document compliance>",
+  "summaryEn": "<overall English summary of document compliance>"
 }
 
-function enrichGapsWithRequirementText(raw: RawAnalysis, requirements: RegulatoryRequirement[]): GapItem[] {
-  return raw.gaps
-    .map((gap): GapItem | null => {
-      const requirement = requirements.find((r) => r.id === gap.requirementId);
-      if (!requirement) return null;
-      return {
-        requirementId: requirement.id,
-        requirementSource: requirement.source,
-        requirementClauseRef: requirement.clauseRef,
-        requirementTextAr: requirement.textAr,
-        requirementTextEn: requirement.textEn,
-        gapFoundAr: gap.gapFoundAr,
-        gapFoundEn: gap.gapFoundEn,
-        severity: gap.severity,
-        suggestedFixAr: gap.suggestedFixAr,
-        suggestedFixEn: gap.suggestedFixEn,
-      };
-    })
-    .filter((g): g is GapItem => g !== null);
+CRITICAL RULES:
+- You MUST include ALL ${requirements.length} requirements in the "requirements" array — both compliant and non-compliant ones.
+- The "extractedQuote" field MUST be filled FIRST before deciding "isCompliant".
+- If the document VIOLATES a requirement (e.g., stores passwords when prohibited), set severity to "high".
+- Output ONLY the JSON object. No markdown, no backticks, no explanations outside JSON.`;
+}
+
+/**
+ * Convert the structured per-requirement analysis into the AnalysisResult format
+ * Scores are calculated server-side from isCompliant flags — NOT from the model
+ */
+function convertToAnalysisResult(
+  structured: StructuredAnalysis,
+  requirements: RegulatoryRequirement[]
+): AnalysisResult {
+  // Build a map of evaluations by requirementId
+  const evalMap = new Map(structured.requirements.map(r => [r.requirementId, r]));
+
+  // Calculate per-category scores
+  const categories: Record<string, { met: number; total: number }> = {
+    regulatory: { met: 0, total: 0 },
+    cybersecurity: { met: 0, total: 0 },
+    operational: { met: 0, total: 0 },
+  };
+
+  for (const req of requirements) {
+    const cat = categories[req.category];
+    if (!cat) continue;
+    cat.total++;
+    const evaluation = evalMap.get(req.id);
+    if (evaluation?.isCompliant) {
+      cat.met++;
+    }
+  }
+
+  function scoreToLevel(score: number): 'low' | 'medium' | 'high' {
+    if (score >= 80) return 'low';
+    if (score >= 50) return 'medium';
+    return 'high';
+  }
+
+  const riskCategories: RiskCategory[] = [
+    {
+      id: 'regulatory',
+      score: categories.regulatory.total > 0
+        ? Math.round((categories.regulatory.met / categories.regulatory.total) * 100)
+        : 0,
+      level: 'low',
+      summaryAr: structured.summaryAr || '',
+      summaryEn: structured.summaryEn || '',
+    },
+    {
+      id: 'cybersecurity',
+      score: categories.cybersecurity.total > 0
+        ? Math.round((categories.cybersecurity.met / categories.cybersecurity.total) * 100)
+        : 0,
+      level: 'low',
+      summaryAr: structured.summaryAr || '',
+      summaryEn: structured.summaryEn || '',
+    },
+    {
+      id: 'operational',
+      score: categories.operational.total > 0
+        ? Math.round((categories.operational.met / categories.operational.total) * 100)
+        : 0,
+      level: 'low',
+      summaryAr: structured.summaryAr || '',
+      summaryEn: structured.summaryEn || '',
+    },
+  ];
+
+  // Set levels from scores
+  for (const rc of riskCategories) {
+    rc.level = scoreToLevel(rc.score);
+  }
+
+  // Calculate overall score
+  const totalMet = Object.values(categories).reduce((sum, c) => sum + c.met, 0);
+  const totalReqs = Object.values(categories).reduce((sum, c) => sum + c.total, 0);
+  const overallScore = totalReqs > 0 ? Math.round((totalMet / totalReqs) * 100) : 0;
+
+  // Build gaps from non-compliant requirements
+  const gaps: GapItem[] = [];
+  for (const evaluation of structured.requirements) {
+    if (evaluation.isCompliant) continue;
+
+    const req = requirements.find(r => r.id === evaluation.requirementId);
+    if (!req) continue;
+
+    gaps.push({
+      requirementId: req.id,
+      requirementSource: req.source,
+      requirementClauseRef: req.clauseRef,
+      requirementTextAr: req.textAr,
+      requirementTextEn: req.textEn,
+      gapFoundAr: evaluation.gap || 'فجوة مكتشفة',
+      gapFoundEn: evaluation.gapEn || 'Gap detected',
+      severity: evaluation.severity === 'none' ? 'low' : (evaluation.severity || 'medium'),
+      suggestedFixAr: evaluation.suggestedFix,
+      suggestedFixEn: evaluation.suggestedFixEn,
+    });
+  }
+
+  return {
+    overallScore,
+    riskCategories,
+    gaps,
+    source: 'nvidia',
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -117,21 +188,27 @@ export async function POST(req: NextRequest) {
   try {
     const text = await extractTextFromFile(file);
     if (!text || text.trim().length < 50) {
-      return NextResponse.json({ error: 'فشل استخراج النص، يرجى التأكد من صلاحية الملف وأن يحتوي على نصوص قابلة للقراءة.' }, { status: 400 });
+      return NextResponse.json({
+        error: 'فشل استخراج النص، يرجى التأكد من صلاحية الملف وأن يحتوي على نصوص قابلة للقراءة.',
+      }, { status: 400 });
     }
 
     console.log(`[ANALYZE] Sector: ${sector} | Text length: ${text.length} chars | First 200 chars: ${text.slice(0, 200)}`);
 
     const requirements = getRequirementsForSector(sector);
     const prompt = buildAnalysisPrompt(text.slice(0, MAX_EXTRACTED_CHARS), sector, requirements);
-    const raw = await callNvidiaAnalysis(prompt);
+    const structured = await callNvidiaAnalysis(prompt);
 
-    const result: AnalysisResult = {
-      overallScore: raw.overallScore,
-      riskCategories: raw.riskCategories,
-      gaps: enrichGapsWithRequirementText(raw, requirements),
-      source: 'nvidia',
-    };
+    console.log(`[ANALYZE] Model returned ${structured.requirements?.length || 0} requirement evaluations`);
+
+    // Log each evaluation for debugging
+    for (const r of (structured.requirements || [])) {
+      console.log(`  [${r.requirementId}] compliant=${r.isCompliant} | quote="${(r.extractedQuote || '').slice(0, 80)}..." | severity=${r.severity}`);
+    }
+
+    const result = convertToAnalysisResult(structured, requirements);
+
+    console.log(`[ANALYZE] Final score: ${result.overallScore}% | Gaps: ${result.gaps.length}`);
 
     return NextResponse.json(result);
   } catch (err) {
