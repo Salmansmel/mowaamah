@@ -28,10 +28,11 @@ ${documentText}
 IMPORTANT: The text above was extracted from an Arabic PDF. Text extraction sometimes scrambles spaces or word order in right-to-left languages. 
 
 Task: You must perform a STRICT AND PRECISE RETRIEVAL search for each requirement. Do NOT rely on general summaries. For every single requirement in the list:
-1. Search the extracted document for any related keywords, synonyms, or partial matches (e.g., "التحريات المالية", "FIU", "تدريب", "دوري").
-2. If you find ANY mention or evidence of the requirement, you MUST consider it MET (do NOT report a gap).
-3. ONLY report a gap if you have exhaustively searched the entire text and found absolutely zero evidence. 
-4. Do NOT hedge by saying "it wasn't clearly mentioned" (لم يتم ذكره بشكل واضح). If it is mentioned at all, it is NOT a gap.
+1. Search the extracted document for any related keywords, synonyms, or partial matches.
+2. CRITICAL: Search for the meaning and context in the Arabic language (e.g., "وحدة التحريات المالية"), do NOT require an exact literal match with the English requirement text.
+3. If you find ANY mention or evidence of the requirement conceptually, you MUST consider it MET (do NOT report a gap).
+4. ONLY report a gap if you have exhaustively searched the entire text and found absolutely zero evidence.
+5. Do NOT hedge by saying "it wasn't clearly mentioned" (لم يتم ذكره بشكل واضح). If it is mentioned at all, it is NOT a gap.
 
 Respond ONLY with a valid JSON object exactly matching this structure (do NOT wrap it in markdown backticks):
 {

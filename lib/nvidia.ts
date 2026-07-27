@@ -35,7 +35,7 @@ export async function callNvidiaAnalysis(prompt: string): Promise<RawAnalysis> {
   const response = await nvidiaClient.chat.completions.create({
     model: NVIDIA_MODEL,
     messages: [{ role: 'user', content: prompt }],
-    temperature: 0.2,
+    temperature: 0.0,
     top_p: 0.7,
     max_tokens: 2048,
     response_format: { type: 'json_object' },
