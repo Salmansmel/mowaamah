@@ -32,7 +32,7 @@ export interface GapItem {
   suggestedFixEn?: string;
 }
 
-export type AnalysisSource = 'gemini' | 'mock-fallback';
+export type AnalysisSource = 'gemini' | 'nvidia' | 'mock-fallback';
 
 export interface AnalysisResult {
   id?: string;

@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/analyze": ["./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"],
   },
+  allowedDevOrigins: ["172.16.240.59"],
 };
 
 export default nextConfig;

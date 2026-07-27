@@ -32,7 +32,9 @@ function UploadContent() {
     setError(null);
 
     try {
-      const uploadId = crypto.randomUUID();
+      const uploadId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : Date.now().toString(36) + Math.random().toString(36).substring(2);
 
       const formData = new FormData();
       formData.append('file', file);

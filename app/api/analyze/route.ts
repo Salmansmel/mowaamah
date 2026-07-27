@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractTextFromFile } from '@/lib/extractText';
-import { callGeminiAnalysis, RawGeminiAnalysis } from '@/lib/gemini';
+import { callNvidiaAnalysis, RawAnalysis } from '@/lib/nvidia';
 import { REGULATORY_REQUIREMENTS } from '@/lib/regulatoryRequirements';
 import { generateMockAnalysis } from '@/lib/mockAnalysis';
 import { AnalysisResult, GapItem } from '@/lib/types';
@@ -8,7 +8,7 @@ import { AnalysisResult, GapItem } from '@/lib/types';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const MAX_EXTRACTED_CHARS = 15000;
+const MAX_EXTRACTED_CHARS = 100000;
 
 function buildAnalysisPrompt(documentText: string, sector: string): string {
   const requirementsBlock = REGULATORY_REQUIREMENTS.map(
@@ -25,6 +25,8 @@ Below is the text extracted from the startup's uploaded project document:
 ${documentText}
 """
 
+IMPORTANT: The text above was extracted from an Arabic PDF. Text extraction sometimes scrambles spaces or word order in right-to-left languages. You MUST read the ENTIRE text very carefully. Do not mistakenly claim a requirement is missing if the keywords or concepts exist anywhere in the text.
+
 Task: Compare the document against each requirement. For requirements NOT adequately addressed in the document, report a gap. Then compute:
 1. overallScore (0-100): overall compliance readiness.
 2. riskCategories: exactly three entries with id "regulatory", "cybersecurity", and "operational", each with a score (0-100, higher = lower risk), a level ("low"|"medium"|"high"), and a short bilingual summary (Arabic in summaryAr, English in summaryEn) of that risk category's issues found in the document.
@@ -33,7 +35,7 @@ Task: Compare the document against each requirement. For requirements NOT adequa
 Only reference requirement ids from the list above. Respond only with the structured JSON matching the provided schema.`;
 }
 
-function enrichGapsWithRequirementText(raw: RawGeminiAnalysis): GapItem[] {
+function enrichGapsWithRequirementText(raw: RawAnalysis): GapItem[] {
   return raw.gaps
     .map((gap): GapItem | null => {
       const requirement = REGULATORY_REQUIREMENTS.find((r) => r.id === gap.requirementId);
@@ -68,13 +70,13 @@ export async function POST(req: NextRequest) {
     if (!text.trim()) throw new Error('No extractable text found in document');
 
     const prompt = buildAnalysisPrompt(text.slice(0, MAX_EXTRACTED_CHARS), sector);
-    const raw = await callGeminiAnalysis(prompt);
+    const raw = await callNvidiaAnalysis(prompt);
 
     const result: AnalysisResult = {
       overallScore: raw.overallScore,
       riskCategories: raw.riskCategories,
       gaps: enrichGapsWithRequirementText(raw),
-      source: 'gemini',
+      source: 'nvidia',
     };
 
     return NextResponse.json(result);
