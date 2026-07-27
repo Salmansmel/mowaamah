@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { extractTextFromFile } from '@/lib/extractText';
 import { callNvidiaAnalysis, RawAnalysis } from '@/lib/nvidia';
 import { REGULATORY_REQUIREMENTS } from '@/lib/regulatoryRequirements';
-import { generateMockAnalysis } from '@/lib/mockAnalysis';
 import { AnalysisResult, GapItem } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -35,27 +34,36 @@ Task: You must perform a STRICT AND PRECISE RETRIEVAL search for each requiremen
 5. ONLY report a gap if you have exhaustively searched the entire text and found absolutely zero evidence.
 6. Do NOT hedge by saying "it wasn't clearly mentioned" (لم يتم ذكره بشكل واضح). If it is mentioned at all, it is NOT a gap.
 
+You MUST calculate the scores yourself based on your analysis. Do NOT use placeholder numbers.
+- overallScore: Calculate as a percentage (0-100) reflecting how many requirements are MET vs total requirements.
+- Each riskCategory score: Calculate based on how well the document addresses that specific risk area.
+- level: "low" if score >= 80, "medium" if score >= 50, "high" if score < 50.
+
 Respond ONLY with a valid JSON object exactly matching this structure (do NOT wrap it in markdown backticks):
 {
-  "overallScore": 85,
+  "overallScore": <YOUR_CALCULATED_SCORE>,
   "riskCategories": [
-    { "id": "regulatory", "score": 90, "level": "low", "summaryAr": "...", "summaryEn": "..." },
-    { "id": "cybersecurity", "score": 80, "level": "medium", "summaryAr": "...", "summaryEn": "..." },
-    { "id": "operational", "score": 100, "level": "low", "summaryAr": "...", "summaryEn": "..." }
+    { "id": "regulatory", "score": <CALCULATED>, "level": "<CALCULATED>", "summaryAr": "<your Arabic summary>", "summaryEn": "<your English summary>" },
+    { "id": "cybersecurity", "score": <CALCULATED>, "level": "<CALCULATED>", "summaryAr": "<your Arabic summary>", "summaryEn": "<your English summary>" },
+    { "id": "operational", "score": <CALCULATED>, "level": "<CALCULATED>", "summaryAr": "<your Arabic summary>", "summaryEn": "<your English summary>" }
   ],
   "gaps": [
     {
-      "requirementId": "req_id_from_list",
-      "gapFoundAr": "...",
-      "gapFoundEn": "...",
-      "severity": "medium",
-      "suggestedFixAr": "...",
-      "suggestedFixEn": "..."
+      "requirementId": "<actual_req_id_from_list>",
+      "gapFoundAr": "<Arabic description of the gap>",
+      "gapFoundEn": "<English description of the gap>",
+      "severity": "<low|medium|high>",
+      "suggestedFixAr": "<Arabic fix suggestion>",
+      "suggestedFixEn": "<English fix suggestion>"
     }
   ]
 }
 
-Only reference requirement ids from the list above. Do NOT include any explanations outside the JSON.`;
+CRITICAL RULES:
+- The overallScore MUST be mathematically consistent with the gaps found. If many gaps exist, the score MUST be low.
+- Do NOT copy example numbers. Calculate real scores from your analysis.
+- Only reference requirement ids from the list above.
+- Do NOT include any explanations outside the JSON.`;
 }
 
 function enrichGapsWithRequirementText(raw: RawAnalysis): GapItem[] {
