@@ -41,37 +41,44 @@ Below is the text extracted from the startup's uploaded document:
 ${documentText}
 """
 
-YOUR TASK:
-For each of the ${requirements.length} requirements above, search the document carefully:
-1. Search for the meaning and context in ARABIC (e.g., "رأس المال", "تشفير", "وحدة التحريات المالية"), not just English keywords.
-2. امسح النص بالكامل بحثاً عن كل متطلب على حدة. لا تصرح بغياب المتطلب إلا بعد التأكد التام من عدم وجود أي مرادفات عربية له في كامل المستند.
-3. If you find ANY mention or evidence of a requirement, it is MET — do NOT report it as a gap.
-4. ONLY report a gap if there is ZERO evidence in the entire document.
-5. ALSO look for ACTIVE VIOLATIONS: if the document describes a practice that directly CONTRADICTS a requirement (e.g., storing passwords when the requirement prohibits it), report it as a HIGH severity gap and explain the violation clearly.
+YOUR TASK — CHAIN OF THOUGHT (follow these steps IN ORDER for EACH requirement):
+
+لكل متطلب تنظيمي، اتبع الخطوات التالية بالترتيب:
+
+الخطوة 1 — اقتباس: استخرج النص الدقيق من الوثيقة المرتبط بالمتطلب أو مرادفاته العربية. إذا وجدت نصاً ذا صلة، انسخه حرفياً.
+الخطوة 2 — تحليل: هل النص المقتبس يفي بالمتطلب بالكامل؟ هل يتوافق معه أم يتناقض معه؟
+الخطوة 3 — قرار الفجوة: لا تكتب فجوة إلا إذا كان الاقتباس مفقوداً تماماً أو كان النص يتناقض صراحةً مع المتطلب (انتهاك نشط).
+
+IMPORTANT RULES:
+1. Search for meaning and context in ARABIC (e.g., "رأس المال", "تشفير", "وحدة التحريات المالية"), not just English keywords.
+2. If you find ANY mention or evidence of a requirement, it is MET — do NOT report it as a gap.
+3. ONLY report a gap if there is ZERO evidence in the entire document.
+4. ACTIVE VIOLATIONS: if the document describes a practice that directly CONTRADICTS a requirement (e.g., storing passwords when the requirement prohibits it), report it as a HIGH severity gap.
 
 SCORING RULES:
-- overallScore: Calculate as (number of MET requirements / total requirements) * 100. Round to nearest integer.
+- overallScore: Calculate as (number of MET requirements / total ${requirements.length} requirements) * 100.
 - Each riskCategory score: Calculate based on how many requirements in that category are MET.
 - level: "low" if score >= 80, "medium" if score >= 50, "high" if score < 50.
 - If many gaps exist, the overallScore MUST be low. A document with 5+ gaps cannot score above 60%.
 - If the document actively VIOLATES requirements (not just missing them), scores should be even lower.
 
-Respond ONLY with valid JSON matching this structure (no markdown, no backticks):
+Respond ONLY with valid JSON (no markdown, no backticks, no text outside the JSON):
 {
-  "overallScore": <CALCULATE_FROM_ANALYSIS>,
+  "overallScore": <CALCULATE>,
   "riskCategories": [
-    { "id": "regulatory", "score": <CALCULATE>, "level": "<CALCULATE>", "summaryAr": "<detailed Arabic summary>", "summaryEn": "<detailed English summary>" },
-    { "id": "cybersecurity", "score": <CALCULATE>, "level": "<CALCULATE>", "summaryAr": "<detailed Arabic summary>", "summaryEn": "<detailed English summary>" },
-    { "id": "operational", "score": <CALCULATE>, "level": "<CALCULATE>", "summaryAr": "<detailed Arabic summary>", "summaryEn": "<detailed English summary>" }
+    { "id": "regulatory", "score": <CALCULATE>, "level": "<CALCULATE>", "summaryAr": "<summary>", "summaryEn": "<summary>" },
+    { "id": "cybersecurity", "score": <CALCULATE>, "level": "<CALCULATE>", "summaryAr": "<summary>", "summaryEn": "<summary>" },
+    { "id": "operational", "score": <CALCULATE>, "level": "<CALCULATE>", "summaryAr": "<summary>", "summaryEn": "<summary>" }
   ],
   "gaps": [
     {
-      "requirementId": "<actual_id_from_list>",
-      "gapFoundAr": "<Arabic: describe exactly what is missing or violated>",
-      "gapFoundEn": "<English: describe exactly what is missing or violated>",
+      "requirementId": "<id_from_list>",
+      "evidence": "<exact Arabic quote from document, or NONE if not found>",
+      "gapFoundAr": "<Arabic: what is missing or violated>",
+      "gapFoundEn": "<English: what is missing or violated>",
       "severity": "<low|medium|high>",
-      "suggestedFixAr": "<Arabic: specific actionable fix>",
-      "suggestedFixEn": "<English: specific actionable fix>"
+      "suggestedFixAr": "<Arabic fix>",
+      "suggestedFixEn": "<English fix>"
     }
   ]
 }`;
