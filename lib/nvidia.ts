@@ -44,5 +44,13 @@ export async function callNvidiaAnalysis(prompt: string): Promise<RawAnalysis> {
   const text = response.choices[0]?.message?.content;
   if (!text) throw new Error('Empty response from NVIDIA API');
   
-  return JSON.parse(text) as RawAnalysis;
+  // Clean markdown json blocks if the model outputs them despite instructions
+  const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  
+  try {
+    return JSON.parse(cleanText) as RawAnalysis;
+  } catch (parseError) {
+    console.error('Failed to parse NVIDIA JSON response:', cleanText);
+    throw new Error('NVIDIA API returned invalid JSON: ' + (parseError as Error).message);
+  }
 }

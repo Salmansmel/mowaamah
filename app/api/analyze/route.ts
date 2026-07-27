@@ -33,12 +33,27 @@ Task: You must perform a STRICT AND PRECISE RETRIEVAL search for each requiremen
 3. ONLY report a gap if you have exhaustively searched the entire text and found absolutely zero evidence. 
 4. Do NOT hedge by saying "it wasn't clearly mentioned" (لم يتم ذكره بشكل واضح). If it is mentioned at all, it is NOT a gap.
 
-Respond only with the structured JSON matching the schema below. Compute:
-1. overallScore (0-100): overall compliance readiness.
-2. riskCategories: exactly three entries with id "regulatory", "cybersecurity", and "operational", each with a score (0-100, higher = lower risk), a level ("low"|"medium"|"high"), and a short bilingual summary (Arabic in summaryAr, English in summaryEn) of that risk category's issues found in the document.
-3. gaps: an array where each item references one of the requirement ids above (requirementId) that was not adequately addressed, with a bilingual description of the gap found (gapFoundAr, gapFoundEn), a severity ("low"|"medium"|"high"), and a suggested bilingual fix clause (suggestedFixAr, suggestedFixEn) the startup could add to their document to close the gap.
+Respond ONLY with a valid JSON object exactly matching this structure (do NOT wrap it in markdown backticks):
+{
+  "overallScore": 85,
+  "riskCategories": [
+    { "id": "regulatory", "score": 90, "level": "low", "summaryAr": "...", "summaryEn": "..." },
+    { "id": "cybersecurity", "score": 80, "level": "medium", "summaryAr": "...", "summaryEn": "..." },
+    { "id": "operational", "score": 100, "level": "low", "summaryAr": "...", "summaryEn": "..." }
+  ],
+  "gaps": [
+    {
+      "requirementId": "req_id_from_list",
+      "gapFoundAr": "...",
+      "gapFoundEn": "...",
+      "severity": "medium",
+      "suggestedFixAr": "...",
+      "suggestedFixEn": "..."
+    }
+  ]
+}
 
-Only reference requirement ids from the list above. Respond only with the structured JSON matching the provided schema.`;
+Only reference requirement ids from the list above. Do NOT include any explanations outside the JSON.`;
 }
 
 function enrichGapsWithRequirementText(raw: RawAnalysis): GapItem[] {
@@ -89,6 +104,13 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error('Gemini analysis failed — falling back to mock analysis', err);
     const fallback = await generateMockAnalysis(file.name, sector);
+    
+    // Inject the real error into the mock data so the user can debug it on the UI
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    if (fallback.gaps.length > 0) {
+      fallback.gaps[0].gapFoundAr = `⚠️ ERROR: ${errorMessage} (This is a fallback analysis)`;
+    }
+    
     return NextResponse.json(fallback);
   }
 }
