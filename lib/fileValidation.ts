@@ -1,4 +1,4 @@
-export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 export const ACCEPTED_EXTENSIONS = ['.docx'];
 
 export function validateFile(file: File): string | null {
