@@ -3,25 +3,7 @@ export async function extractTextFromFile(file: File): Promise<string> {
   const lowerName = file.name.toLowerCase();
 
   if (lowerName.endsWith('.pdf')) {
-    // Call the Python Microservice deployed on Vercel
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000');
-      
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    const res = await fetch(`${baseUrl}/api/extract`, {
-      method: 'POST',
-      body: formData,
-    });
-    
-    if (!res.ok) {
-      throw new Error(`Python PDF Extraction failed: ${res.statusText}`);
-    }
-    
-    const data = await res.json();
-    return data.text || '';
+    throw new Error('PDF files are temporarily unsupported. Please upload a DOCX file.');
   }
 
   if (lowerName.endsWith('.docx')) {

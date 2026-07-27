@@ -1,5 +1,5 @@
-export const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
-export const ACCEPTED_EXTENSIONS = ['.pdf', '.docx'];
+export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+export const ACCEPTED_EXTENSIONS = ['.docx'];
 
 export function validateFile(file: File): string | null {
   const lowerName = file.name.toLowerCase();

@@ -94,7 +94,7 @@ export function FileDropzone({ selectedFile, onFileSelected, onClear }: FileDrop
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf,.docx"
+          accept=".docx"
           className="hidden"
           onChange={handleInputChange}
         />
