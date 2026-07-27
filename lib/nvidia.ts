@@ -8,7 +8,7 @@ export const nvidiaClient = apiKey ? new OpenAI({
 }) : null;
 
 // Use a generative model, as embedding models cannot generate JSON responses
-export const NVIDIA_MODEL = 'meta/llama-3.1-70b-instruct';
+export const NVIDIA_MODEL = 'meta/llama-3.1-8b-instruct';
 
 export interface RawAnalysis {
   overallScore: number;
